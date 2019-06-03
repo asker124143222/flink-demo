@@ -59,12 +59,13 @@ public class WordCount {
                 .flatMap(new Tokenizer())
                 // group by the tuple field "0" and sum up tuple field "1"
                 .groupBy(0)
+                //等效于sum(1)
                 .reduce(new ReduceFunction<Tuple2<String, Integer>>() {
                     @Override
                     public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1, Tuple2<String, Integer> value2) throws Exception {
                         return new Tuple2<>(value1.f0,value1.f1+value2.f1);
                     }
-                }); //等效于sum(1)
+                });
 //                .sum(1);
         // emit result
         if(params.has("output")){
