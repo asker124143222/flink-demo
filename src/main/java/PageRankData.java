@@ -6,9 +6,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * @Author: xu.dm
- * @Date: 2019/6/3 20:13
- * @Description:
+ *  numPages缺省15个测试页面
+ *
+ *  EDGES表示从一个pageId指向相连的另外一个pageId
  */
 public class PageRankData {
 
