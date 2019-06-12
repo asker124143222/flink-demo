@@ -119,7 +119,7 @@ public class PageRank {
                 // apply dampening factor
                 .map(new Dampener(PageRank.DAMPENING_FACTOR, numPages));
 
-
+        //如果没有达到收敛条件，循环10次后结束
         DataSet<Tuple2<Long, Double>> finalPageRanks = iteration.closeWith(
                 newRanks,
                 newRanks.join(iteration).where(0).equalTo(0)
