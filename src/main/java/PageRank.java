@@ -104,7 +104,7 @@ public class PageRank {
         // build adjacency list from link input
         DataSet<Tuple2<Long, Long[]>> adjacencyListInput = linksInput
                 .groupBy(0)
-                .reduceGroup(new BuildOutgoingEdgeList());
+                .reduceGroup(new BuildOutgoingEdgeList());//.setParallelism(2);
 
         // set iterative data set
         IterativeDataSet<Tuple2<Long, Double>> iteration = pagesWithRanks.iterate(maxIterations);
@@ -159,6 +159,7 @@ public class PageRank {
      * originate. Run as a pre-processing step.
      * 将分组后的links数据按Id放入Tuple2<Long, Long[]>
      * 与hadoop的mapreduce的reduce部分类似，groupby就是shuffle
+     * reduce过程可以是并行的
      */
     @FunctionAnnotation.ForwardedFields("0")
     public static final class BuildOutgoingEdgeList implements GroupReduceFunction<Tuple2<Long, Long>, Tuple2<Long, Long[]>> {
@@ -176,13 +177,14 @@ public class PageRank {
                 System.out.println("id: " + id + " ,neighbors: " + n.f1);
             }
             out.collect(new Tuple2<Long, Long[]>(id, neighbors.toArray(new Long[neighbors.size()])));
+//            System.out.println("reduce end -->id:"+id);
         }
     }
 
     /**
      * Join function that distributes a fraction of a vertex's rank to all neighbors.
      * 按照页面id以及其连接页面的数量，重新计算相邻点的rank，迭代10次
-     * rankToDistribute就是计算了顶点（id）指向边（neighbors）的贡献值，neighbors最终的rank值需要合计后才能算出
+     * rankToDistribute就是计算了顶点（id）指向边（neighbors）的贡献值，neighbors最终所获得的rank值需要合计后才能算出
      */
     public static final class JoinVertexWithEdgesMatch implements FlatMapFunction<Tuple2<Tuple2<Long, Double>, Tuple2<Long, Long[]>>, Tuple2<Long, Double>> {
 
@@ -229,8 +231,10 @@ public class PageRank {
 
     /**
      * Filter that filters vertices where the rank difference is below a threshold.
-     * 如果迭代之间的参数之和低于此EPSILON，我们将会收敛
+     * 如果迭代之间的参数之差低于此EPSILON，我们将会收敛
      * 每次迭代后都会调用Filter判断是否要退出迭代
+     * FilterFunction<T>里的T是由newRanks.join(iteration).where(0).equalTo(0)后的数据，
+     * 每次迭代newRanks和iteration这两个数据集都更新
      */
     public static final class EpsilonFilter implements FilterFunction<Tuple2<Tuple2<Long, Double>, Tuple2<Long, Double>>> {
 
