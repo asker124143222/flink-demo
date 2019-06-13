@@ -30,6 +30,7 @@ public class IteratePi {
         });
 
         // Iteratively transform the IterativeDataSet
+        //迭代100次或者达到收敛条件（value>=50）
         DataSet<Integer> count = inital.closeWith(iteration,iteration.filter(new FilterFunction<Integer>() {
             @Override
             public boolean filter(Integer value) throws Exception {

@@ -109,9 +109,9 @@ public class PageRank {
         // set iterative data set
         IterativeDataSet<Tuple2<Long, Double>> iteration = pagesWithRanks.iterate(maxIterations);
 
+        //迭代算子
         DataSet<Tuple2<Long, Double>> newRanks = iteration.join(adjacencyListInput)
                 .where(0).equalTo(0)
-                //迭代算子
                 .flatMap(new JoinVertexWithEdgesMatch())
                 // collect and sum ranks
                 .groupBy(0)
@@ -185,6 +185,7 @@ public class PageRank {
      * Join function that distributes a fraction of a vertex's rank to all neighbors.
      * 按照页面id以及其连接页面的数量，重新计算相邻点的rank，迭代10次
      * rankToDistribute就是计算了顶点（id）指向边（neighbors）的贡献值，neighbors最终所获得的rank值需要合计后才能算出
+     * JoinVertexWithEdgesMatch算子主要计算pageId(a)-->pageId(b)，类似这样a给b的贡献值，b所获得各种节点贡献值由下一个算子合计
      */
     public static final class JoinVertexWithEdgesMatch implements FlatMapFunction<Tuple2<Tuple2<Long, Double>, Tuple2<Long, Long[]>>, Tuple2<Long, Double>> {
 
