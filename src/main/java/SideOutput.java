@@ -1,12 +1,9 @@
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -41,8 +38,10 @@ public class SideOutput {
                         for(String token : tokens){
                             if(token.length()>5){
                                 ctx.output(rejectWordsTag,token);
+                                out.collect(new Tuple2<>("rejectWordCount",1));
                             }else if(token.length()>0){
                                 out.collect(new Tuple2<>(token,1));
+
                             }
                             else {
                                 out.collect(new Tuple2<>("error",1));
