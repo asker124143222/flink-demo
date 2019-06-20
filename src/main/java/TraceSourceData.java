@@ -40,7 +40,7 @@ public class TraceSourceData {
                 .timeWindow(Time.seconds(5))
                 .sum(1);
 
-//        statusData.print().setParallelism(2);
+        statusData.print().setParallelism(1);
 
         //5秒窗口统计响应时间大于50的用户访问次数在整个响应中的占比
         //大于50，小于等于50，所有次数
@@ -78,7 +78,6 @@ public class TraceSourceData {
                 System.out.println(LocalDateTime.ofInstant(Instant.ofEpochMilli(context.timestamp()), ZoneId.systemDefault()) + " " + value);
             }
         });
-//        greater100UserPer.print().setParallelism(1);
 
 
         env.execute("TraceSourceData");
