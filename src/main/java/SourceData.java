@@ -14,18 +14,18 @@ public class SourceData implements SourceFunction<String> {
     @Override
     public void run(SourceContext<String> ctx) throws Exception {
         while (Running) {
-            Thread.sleep((int) Math.random() * 100);
+            Thread.sleep((int) (Math.random() * 10));
 
             StringBuffer stringBuffer = new StringBuffer();
             stringBuffer.append(UUID.randomUUID().toString());
             stringBuffer.append(",");
-            stringBuffer.append((int) Math.random() * 1000);
+            stringBuffer.append((int) (Math.random() * 100));
             stringBuffer.append(",");
             stringBuffer.append(System.currentTimeMillis());
             stringBuffer.append(",");
-            stringBuffer.append(status[(int) Math.random() * 4]);
+            stringBuffer.append(status[(int) (Math.random() * 4)]);
             stringBuffer.append(",");
-            stringBuffer.append((int)Math.random()*200);
+            stringBuffer.append((int)(Math.random()*200));
 
             ctx.collect(stringBuffer.toString());
         }

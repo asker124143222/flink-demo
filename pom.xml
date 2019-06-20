@@ -56,6 +56,13 @@
             <version>1.8.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-nop</artifactId>
+            <version>1.7.26</version>
+            <!--<scope>test</scope>-->
+        </dependency>
+
     </dependencies>
 
 </project>

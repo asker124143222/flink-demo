@@ -84,13 +84,7 @@ public class Dashboard {
                 .keyBy(0, 1)
                 .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
 //                .timeWindow(Time.seconds(5))
-                .reduce(new ReduceFunction<Tuple3<Integer, Integer, Integer>>() {
-                    @Override
-                    public Tuple3<Integer, Integer, Integer> reduce(Tuple3<Integer, Integer, Integer> value1, Tuple3<Integer, Integer, Integer> value2) throws Exception {
-                        return new Tuple3<>(value1.f0,value1.f1,value1.f2+value2.f2);
-                    }
-                });
-//                .sum(2);
+                .sum(2);
 
         statusStream.print().setParallelism(1);
 
@@ -108,6 +102,7 @@ public class Dashboard {
                 + "from log where status <> 404 group by TUMBLE(rowtime,INTERVAL '1' SECOND) )";
 
         Table result1 = tableEnv.sqlQuery(sql);
+
 
         //write to csv sink
         TableSink csvSink = new CsvTableSink("out/log", "|");
