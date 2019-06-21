@@ -106,6 +106,9 @@ public class ConnectedComponents {
 
     }
 
+    /**
+     * Undirected edges by emitting for each input edge the input edges itself and an inverted version.
+     */
     public static final class UndirectEdge implements FlatMapFunction<Tuple2<Long,Long>,Tuple2<Long,Long>>{
         Tuple2<Long,Long> invertedEdge = new Tuple2<>();
         @Override
@@ -140,7 +143,7 @@ public class ConnectedComponents {
 
         @Override
         public Tuple2<Long, Long> join(Tuple2<Long, Long> vertexWithComponent, Tuple2<Long, Long> edge) {
-            return new Tuple2<Long, Long>(edge.f1, vertexWithComponent.f1);
+            return new Tuple2<>(edge.f1, vertexWithComponent.f1);
         }
     }
 
