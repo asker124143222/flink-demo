@@ -15,35 +15,25 @@ import org.apache.flink.util.Collector;
 import java.util.ArrayList;
 
 /**
- * A basic implementation of the Page Rank algorithm using a bulk iteration.
+ * @Author: xu.dm
+ * @Date: 2019/6/21 14:45
+ * @Version: 1.0
+ * @Description: 使用批量迭代的页面排名算法的基本实现。
+ * 此实现需要一组页面和一组有向链接作为输入，并按如下方式工作。
+ * 在每次迭代中，每个页面的等级均匀分布到它指向的所有页面。每个页面收集指向它的所有页面的部分等级，对它们求和，并对总和应用阻尼因子。结果是页面的新排名。使用所有页面的新等级开始新的迭代。该实现在固定次数的迭代之后终止。
+ * 这是页面排名算法的维基百科条目。
  *
- * <p>This implementation requires a set of pages and a set of directed links as input and works as follows. <br>
- * In each iteration, the rank of every page is evenly distributed to all pages it points to.
- * Each page collects the partial ranks of all pages that point to it, sums them up, and applies a dampening factor to the sum.
- * The result is the new rank of the page. A new iteration is started with the new ranks of all pages.
- * This implementation terminates after a fixed number of iterations.<br>
- * This is the Wikipedia entry for the <a href="http://en.wikipedia.org/wiki/Page_rank">Page Rank algorithm</a>.
+ * 输入文件是纯文本文件，必须格式如下：
  *
- * <p>Input files are plain text files and must be formatted as follows:
- * <ul>
- * <li>Pages represented as an (long) ID separated by new-line characters.<br>
- * For example <code>"1\n2\n12\n42\n63"</code> gives five pages with IDs 1, 2, 12, 42, and 63.
- * <li>Links are represented as pairs of page IDs which are separated by space
- * characters. Links are separated by new-line characters.<br>
- * For example <code>"1 2\n2 12\n1 12\n42 63"</code> gives four (directed) links (1)-&gt;(2), (2)-&gt;(12), (1)-&gt;(12), and (42)-&gt;(63).<br>
- * For this simple implementation it is required that each page has at least one incoming and one outgoing link (a page can point to itself).
- * </ul>
+ * 页面表示为由新行字符分隔的（长）ID。
+ * 例如，"1\n2\n12\n42\n63"给出五个页面ID为1,2,12,42和63的页面。
+ * 链接表示为页面ID对，由空格字符分隔。链接由换行符分隔。
+ * 例如，"1 2\n2 12\n1 12\n42 63"给出四个（定向）链接（1） - >（2），（2） - >（12），（1） - >（12）和（42） - >（63）。
+ * 对于这个简单的实现，要求每个页面至少有一个传入链接和一个传出链接（页面可以指向自身）。
+ * 用法：PageRankBasic --pages <path> --links <path> --output <path> --numPages <n> --iterations <n>
+ *  如果未提供参数，则使用{@link PageRankData}中的默认数据和10次迭代运行程序。
  *
- * <p>Usage: <code>PageRankBasic --pages &lt;path&gt; --links &lt;path&gt; --output &lt;path&gt; --numPages &lt;n&gt; --iterations &lt;n&gt;</code><br>
- * If no parameters are provided, the program is run with default data from {PageRankData} and 10 iterations.
- *
- * <p>This example shows how to use:
- * <ul>
- * <li>Bulk Iterations
- * <li>Default Join
- * <li>Configure user-defined functions using constructor parameters.
- * </ul>
- */
+ **/
 public class PageRank {
     //阻尼系数
     private static final double DAMPENING_FACTOR = 0.85;
