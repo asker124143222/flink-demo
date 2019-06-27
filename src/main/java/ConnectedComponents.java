@@ -76,6 +76,7 @@ public class ConnectedComponents {
         DataSet<Tuple2<Long,Long>> edges = getEdgeDataSet(params, env).flatMap(new UndirectEdge());
 
         // assign the initial components (equal to the vertex id)
+        //初始化顶点元组
         DataSet<Tuple2<Long, Long>> verticesWithInitialId =
                 vertices.map(new DuplicateValue<>());
 
@@ -108,6 +109,8 @@ public class ConnectedComponents {
 
     /**
      * Undirected edges by emitting for each input edge the input edges itself and an inverted version.
+     * 因为是无向连通图，反转边元组edges是为了将所有顶点(vertex)都放在Tuple2的第一个元素中,
+     * 这样合并原来的元组和反转的元组后，生成的新元组的第一个元素将包括所有的顶点vertex，下一步就可以用join进行关联
      */
     public static final class UndirectEdge implements FlatMapFunction<Tuple2<Long,Long>,Tuple2<Long,Long>>{
         Tuple2<Long,Long> invertedEdge = new Tuple2<>();
@@ -123,6 +126,8 @@ public class ConnectedComponents {
 
     /**
      * Function that turns a value into a 2-tuple where both fields are that value.
+     * 将每个点（vertex）映射成（id，id），表示用id值初始化顶点(vertex)的Component-ID （分量ID）
+     * 这个Component-ID就是需要比较以及传播的值
      */
     @FunctionAnnotation.ForwardedFields("*->f0")
     public static final class DuplicateValue<T> implements MapFunction<T,Tuple2<T,T>>{
@@ -136,6 +141,10 @@ public class ConnectedComponents {
      * UDF that joins a (Vertex-ID, Component-ID) pair that represents the current component that
      * a vertex is associated with, with a (Source-Vertex-ID, Target-VertexID) edge. The function
      * produces a (Target-vertex-ID, Component-ID) pair.
+     * 通过(Vertex-ID, Component-ID)顶点对与(Source-Vertex-ID, Target-VertexID)边对的连接，
+     * 得到(Target-vertex-ID, Component-ID)对，这个对是相连顶点的新的分量值，
+     * 下一步这个相连顶点分量值将与原来的自己的分量值比较大小，并保留小的那一对，这个地方有点烧脑。
+     *
      */
     @FunctionAnnotation.ForwardedFieldsFirst("f1->f1")
     @FunctionAnnotation.ForwardedFieldsSecond("f1->f0")
@@ -150,6 +159,7 @@ public class ConnectedComponents {
     /**
      * Emit the candidate (Vertex-ID, Component-ID) pair if and only if the
      * candidate component ID is less than the vertex's current component ID.
+     *
      */
     @FunctionAnnotation.ForwardedFieldsFirst("*")
     public static final class ComponentIdFilter implements FlatJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
