@@ -40,11 +40,11 @@ public class IteratePi {
         }));
 
 
-        System.out.println("pi:");
         count.map(new MapFunction<Integer, Double>() {
             @Override
             public Double map(Integer value) throws Exception {
                 Double result = value /(double) 10000 * 4;
+                System.out.println("pi:"+result);
                 return result;
             }
         }).print();
