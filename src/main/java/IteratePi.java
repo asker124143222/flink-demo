@@ -29,18 +29,18 @@ public class IteratePi {
             }
         });
 
+
         // Iteratively transform the IterativeDataSet
         //迭代100次或者达到收敛条件（value>=50）
         DataSet<Integer> count = inital.closeWith(iteration,iteration.filter(new FilterFunction<Integer>() {
             @Override
             public boolean filter(Integer value) throws Exception {
-                return value<50?true:false;
+                return value<50;
             }
         }));
 
-//        System.out.println("count:");
-//        count.print();
 
+        System.out.println("pi:");
         count.map(new MapFunction<Integer, Double>() {
             @Override
             public Double map(Integer value) throws Exception {
