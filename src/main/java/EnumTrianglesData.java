@@ -18,6 +18,7 @@ public class EnumTrianglesData {
             {2, 3},
             {2, 5},
             {3, 4},
+            {3, 5},
             {3, 7},
             {3, 8},
             {5, 6},

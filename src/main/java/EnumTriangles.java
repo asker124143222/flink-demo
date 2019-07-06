@@ -1,5 +1,7 @@
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.FunctionAnnotation;
@@ -8,6 +10,10 @@ import org.apache.flink.api.java.utils.ParameterTool;
 
 
 import org.apache.flink.util.Collector;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * @Author: xu.dm
@@ -53,6 +59,33 @@ public class EnumTriangles {
             System.out.println("Use --edges to specify file input.");
             edges = EnumTrianglesData.getDefaultEdgeDataSet(env);
         }
+
+        // project edges by vertex id
+        // 对Edge里V1,V2排序，让小的在前
+        DataSet<EnumTrianglesDataTypes.Edge> edgesById = edges
+                .map(new EdgeByIdProjector());
+
+        DataSet<EnumTrianglesDataTypes.Triad> triangles = edgesById
+                // build triads
+                .groupBy(EnumTrianglesDataTypes.Edge.V1)
+                .sortGroup(EnumTrianglesDataTypes.Edge.V2, Order.ASCENDING)
+                .reduceGroup(new TriadBuilder())
+                //通过Triad的第二和第三字段与Edge的第一和第二字段join，找出有第二和第三有路径的对子。
+                .join(edgesById)
+                .where(EnumTrianglesDataTypes.Triad.V2, EnumTrianglesDataTypes.Triad.V3)
+                .equalTo(EnumTrianglesDataTypes.Edge.V1, EnumTrianglesDataTypes.Edge.V2)
+                // filter triads
+                .with(new TriadFilter());
+
+        // emit result
+        if (params.has("output")) {
+            triangles.writeAsCsv(params.get("output"), "\n", ",");
+            // execute program
+            env.execute("Basic Triangle Enumeration Example");
+        } else {
+            System.out.println("Printing result to stdout. Use --output to specify output path.");
+            triangles.print();
+        }
     }
 
     //转换Tuple2类型到Edge类型
@@ -83,10 +116,62 @@ public class EnumTriangles {
         }
     }
 
-    private static class TriadBuilder implements GroupReduceFunction<EnumTrianglesDataTypes.Edge, EnumTrianglesDataTypes.Triad>{
+    /**
+     *  Builds triads (triples of vertices) from pairs of edges that share a vertex.
+     *  The first vertex of a triad is the shared vertex, the second and third vertex are ordered by vertexId.
+     *  Assumes that input edges share the first vertex and are in ascending order of the second vertex.
+     *  构造triads（三位一体结构），即经过分组排序后，拥有共同顶点的edge，按顺序（分组后顶点需要升序）组合成三体
+     *  构成Triad的第一个顶点是分组id，也是分组里所有对子（edge）共享的id，第二和第三个顶点是分组的对子（edge）里的第二个顶点，edge他们是按升序排列。
+     *  分组结构类似如下，s1就是共享的顶点，f1到f3是按升序排列的对子(s1-f1),(s1-f2),(f1-f3)。
+     *       f1
+     *     /
+     *  s1 一 f2
+     *     \
+     *     f3
+     */
+    @FunctionAnnotation.ForwardedFields("0")
+    private static class TriadBuilder
+            implements GroupReduceFunction<EnumTrianglesDataTypes.Edge, EnumTrianglesDataTypes.Triad>{
+        private final List<Integer> vertices = new ArrayList<>();
+        private final EnumTrianglesDataTypes.Triad outTriad = new EnumTrianglesDataTypes.Triad();
+
         @Override
         public void reduce(Iterable<EnumTrianglesDataTypes.Edge> values, Collector<EnumTrianglesDataTypes.Triad> out) throws Exception {
+            final Iterator<EnumTrianglesDataTypes.Edge> edges = values.iterator();
 
+            // clear vertex list
+            vertices.clear();
+
+            // read first edge
+            EnumTrianglesDataTypes.Edge firstEdge = edges.next();
+            outTriad.setFirstVertex(firstEdge.getFirstVertex());
+
+            vertices.add(firstEdge.getSecondVertex());
+
+            // build and emit triads
+            if(edges.hasNext()){
+                Integer higherVertexId = edges.next().getSecondVertex();
+
+                //combine vertex with all previously read vertices
+                for(Integer lowVertexId:vertices){
+                    outTriad.setSecondVertex(lowVertexId);
+                    outTriad.setThirdVertex(higherVertexId);
+                    out.collect(outTriad);
+                }
+                vertices.add(higherVertexId);
+            }
+        }
+    }
+
+    /**
+     * Filters triads (three vertices connected by two edges) without a closing third edge.
+     * 过滤没有闭合边的三体
+     * */
+    private static class TriadFilter
+            implements JoinFunction<EnumTrianglesDataTypes.Triad, EnumTrianglesDataTypes.Edge, EnumTrianglesDataTypes.Triad>{
+        @Override
+        public EnumTrianglesDataTypes.Triad join(EnumTrianglesDataTypes.Triad first, EnumTrianglesDataTypes.Edge second) throws Exception {
+            return first;
         }
     }
 
