@@ -1,9 +1,14 @@
 package clustering;
 
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.FunctionAnnotation;
+import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
@@ -46,7 +51,35 @@ public class KMeans {
         DataSet<Point> points =getPointDataSet(params,env);
         DataSet<Centroid> centroids = getCentroidDataSet(params, env);
 
+        IterativeDataSet<Centroid> loop = centroids.iterate(params.getInt("iterations",10));
 
+        DataSet<Centroid> newCentroid = points
+                //计算每个点距离最近的聚类中心
+                .flatMap(new SelectNearestCenter()).withBroadcastSet(centroids,"centroids")
+                //计算每个点到最近聚类中心的计数
+                .map(new CountAppender())
+                .groupBy(0).reduce(new CentroidAccumulator())
+                //计算新的聚类中心
+                .map(new CentroidAverager());
+
+        //闭合迭代 loop->points->newCentroid(loop)
+        DataSet<Centroid> finalCentroid = loop.closeWith(newCentroid);
+
+        //分配所有点到新的聚类中心
+        DataSet<Tuple2<Integer, Point>> clusteredPoints = points
+                .flatMap(new SelectNearestCenter()).withBroadcastSet(newCentroid,"centroids");
+
+        // emit result
+        if (params.has("output")) {
+            clusteredPoints.writeAsCsv(params.get("output"), "\n", " ");
+
+            // since file sinks are lazy, we trigger the execution explicitly
+            env.execute("KMeans Example");
+        } else {
+            System.out.println("Printing result to stdout. Use --output to specify output path.");
+
+            clusteredPoints.print();
+        }
     }
 
     private static DataSet<Point> getPointDataSet(ParameterTool params,ExecutionEnvironment env){
@@ -76,8 +109,9 @@ public class KMeans {
     }
 
     /** Determines the closest cluster center for a data point.
-     * 找到最近的聚类点
+     * 找到最近的聚类中心
      * */
+    @FunctionAnnotation.ForwardedFields("*->1")
     public static final class SelectNearestCenter extends RichFlatMapFunction<Point, Tuple2<Integer,Point>>{
         private Collection<Centroid> centroids;
 
@@ -96,7 +130,7 @@ public class KMeans {
 
             //检查所有聚类中心
             for(Centroid centroid:centroids){
-                //计算点到中心的距离
+                //计算点到聚类中心的距离
                 double distance = point.euclideanDistance(centroid);
 
                 //更新最小距离
@@ -108,4 +142,39 @@ public class KMeans {
             out.collect(new Tuple2<>(closestCentroidId,point));
         }
     }
+
+    /**
+     * 增加一个计数变量
+     */
+    @FunctionAnnotation.ForwardedFields("f0;f1")
+    public static final class CountAppender implements MapFunction<Tuple2<Integer,Point>, Tuple3<Integer,Point,Long>>{
+        @Override
+        public Tuple3<Integer, Point, Long> map(Tuple2<Integer, Point> value) throws Exception {
+            return new Tuple3<>(value.f0,value.f1,1L);
+        }
+    }
+
+    /**
+     * 合计坐标点和计数，下一步重新平均
+     */
+    @FunctionAnnotation.ForwardedFields("0")
+    public static final class CentroidAccumulator implements ReduceFunction<Tuple3<Integer,Point,Long>>{
+        @Override
+        public Tuple3<Integer, Point, Long> reduce(Tuple3<Integer, Point, Long> value1, Tuple3<Integer, Point, Long> value2) throws Exception {
+            return Tuple3.of(value1.f0,value1.f1.add(value2.f1),value1.f2+value2.f2);
+        }
+    }
+
+    /**
+     *重新计算聚类中心
+     */
+    @FunctionAnnotation.ForwardedFields("0->id")
+    public static final class CentroidAverager implements MapFunction<Tuple3<Integer,Point,Long>,Centroid>{
+        @Override
+        public Centroid map(Tuple3<Integer,Point,Long> value) throws Exception {
+            return new Centroid(value.f0,value.f1.div(value.f2));
+        }
+    }
+
+
 }
