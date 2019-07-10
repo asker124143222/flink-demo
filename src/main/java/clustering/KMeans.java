@@ -55,7 +55,7 @@ public class KMeans {
 
         DataSet<Centroid> newCentroid = points
                 //计算每个点距离最近的聚类中心
-                .flatMap(new SelectNearestCenter()).withBroadcastSet(centroids,"centroids")
+                .flatMap(new SelectNearestCenter()).withBroadcastSet(loop,"centroids")
                 //计算每个点到最近聚类中心的计数
                 .map(new CountAppender())
                 .groupBy(0).reduce(new CentroidAccumulator())
@@ -67,7 +67,7 @@ public class KMeans {
 
         //分配所有点到新的聚类中心
         DataSet<Tuple2<Integer, Point>> clusteredPoints = points
-                .flatMap(new SelectNearestCenter()).withBroadcastSet(newCentroid,"centroids");
+                .flatMap(new SelectNearestCenter()).withBroadcastSet(finalCentroid,"centroids");
 
         // emit result
         if (params.has("output")) {
