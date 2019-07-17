@@ -17,16 +17,18 @@ import java.util.Collection;
  * @Author: xu.dm
  * @Date: 2019/7/16 21:52
  * @Description: 批量梯度下降算法解决线性回归 y = theta0 + theta1*x 的参数求解。
- * This example implements a basic Linear Regression  to solve the y = theta0 + theta1*x problem using batch gradient descent algorithm.
- *
- * <p>Linear Regression with BGD(batch gradient descent) algorithm is an iterative clustering algorithm and works as follows:<br>
+ * 本例实现一元数据求解二元参数。
+ * BGD（批量梯度下降）算法的线性回归是一种迭代聚类算法，其工作原理如下：
+ * BGD给出了数据集和目标集，试图找出适合目标集的数据集的最佳参数。
+ * 在每次迭代中，算法计算代价函数（cost function）的梯度并使用它来更新所有参数。
+ * 算法在固定次数的迭代后终止（如本实现中所示）通过足够的迭代，算法可以最小化成本函数并找到最佳参数。
+ * Linear Regression with BGD(batch gradient descent) algorithm is an iterative clustering algorithm and works as follows:
  * Giving a data set and target set, the BGD try to find out the best parameters for the data set to fit the target set.
  * In each iteration, the algorithm computes the gradient of the cost function and use it to update all the parameters.
  * The algorithm terminates after a fixed number of iterations (as in this implementation)
  * With enough iteration, the algorithm can minimize the cost function and find the best parameters
- * This is the Wikipedia entry for the <a href = "http://en.wikipedia.org/wiki/Linear_regression">Linear regression</a> and <a href = "http://en.wikipedia.org/wiki/Gradient_descent">Gradient descent algorithm</a>.
  *
- * <p>This implementation works on one-dimensional data. And find the two-dimensional theta.<br>
+ * This implementation works on one-dimensional data. And find the two-dimensional theta.
  * It find the best Theta parameter to fit the target.
  *
  * <p>Input files are plain text files and must be formatted as follows:
@@ -68,7 +70,7 @@ public class LinearRegression {
 
         DataSet<Params> newParameters = data
                 // compute a single step using every sample
-                .map(new SubUpdate()).withBroadcastSet(loop,"parameters")
+                .map(new SubUpdate()).withBroadcastSet(loop,"parameters").setParallelism(1)
                 // sum up all the steps
                 .reduce(new UpdateAccumulator())
                 // average the steps and update all parameters
@@ -155,6 +157,11 @@ public class LinearRegression {
 
     /**
      * Compute a single BGD type update for every parameters.
+     * h(x) = theta0*X0 + theta1*X1，假设X0=1,则h(x) = theta0 + theta1*X1,即y = theta0 + theta1*x
+     * 代价函数：j=h(x)-y，这里用的是比较简单的cost function
+     * theta0 = theta0 - α∑(h(x)-y)
+     * theta1 = theta1 - α∑((h(x)-y)*x)
+     *
      */
     public static class SubUpdate extends RichMapFunction<Data, Tuple2<Params, Integer>> {
 
@@ -176,12 +183,13 @@ public class LinearRegression {
             for (Params p : parameters){
                 this.parameter = p;
             }
-
+            //核心计算，对于y = theta0 + theta1*x 假定theta0乘以X0=1，所以theta0计算不用乘以in.x
+            System.out.println("parameter: "+parameter+" , data:"+in);
             double theta0 = parameter.theta0 - 0.01 * ((parameter.theta0 + (parameter.theta1 * in.x)) - in.y);
             double theta1 = parameter.theta1 - 0.01 * (((parameter.theta0 + (parameter.theta1 * in.x)) - in.y) * in.x);
             System.out.println("theta0: "+theta0+" , theta1: "+theta1);
 
-            return new Tuple2<Params, Integer>(new Params(theta0, theta1), count);
+            return new Tuple2<>(new Params(theta0, theta1), count);
         }
     }
 
@@ -196,7 +204,7 @@ public class LinearRegression {
             double newTheta0 = val1.f0.theta0 + val2.f0.theta0;
             double newTheta1 = val1.f0.theta1 + val2.f0.theta1;
             Params result = new Params(newTheta0, newTheta1);
-            return new Tuple2<Params, Integer>(result, val1.f1 + val2.f1);
+            return new Tuple2<>(result, val1.f1 + val2.f1);
 
         }
     }
