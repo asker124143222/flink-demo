@@ -19,7 +19,7 @@ import javax.annotation.Nullable;
 /**
  * @Author: xu.dm
  * @Date: 2019/8/4 18:35
- * @Description:
+ * @Description: 测试watermark在各种窗口里的表现
  */
 public class TumblingEventWindowExample {
     public static void main(String args[]) throws Exception{
