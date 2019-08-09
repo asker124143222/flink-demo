@@ -3,6 +3,7 @@ package streaming;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -23,11 +24,17 @@ import javax.annotation.Nullable;
  */
 public class TumblingEventWindowExample {
     public static void main(String args[]) throws Exception{
+        ParameterTool params = ParameterTool.fromArgs(args);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 //        env.setParallelism(1);
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
-        DataStream<String> socketStream = env.socketTextStream("192.168.31.10",9000);
+        String hostname = "192.168.44.11";
+
+        if(params.has("hostname")){
+            hostname = params.get("hostname");
+        }
+        DataStream<String> socketStream = env.socketTextStream(hostname,8888);
         DataStream<Tuple2<String,Long>> resultStream = socketStream
                 .assignTimestampsAndWatermarks(new BoundedOutOfOrdernessTimestampExtractor<String>(Time.seconds(3)) {
                     @Override
@@ -43,9 +50,9 @@ public class TumblingEventWindowExample {
                         return Tuple2.of(value.split(" ")[1],1L);
                     }
                 }).keyBy(0)
-//                .window(TumblingEventTimeWindows.of(Time.seconds(10)))
+                .window(TumblingEventTimeWindows.of(Time.seconds(10)))
 //                .window(SlidingEventTimeWindows.of(Time.seconds(10),Time.seconds(5)))
-                .window(EventTimeSessionWindows.withGap(Time.seconds(5)))
+//                .window(EventTimeSessionWindows.withGap(Time.seconds(5)))
                 .reduce(new ReduceFunction<Tuple2<String,Long>>() {
                     @Override
                     public Tuple2<String, Long> reduce(Tuple2<String, Long> value1, Tuple2<String, Long> value2) throws Exception {
